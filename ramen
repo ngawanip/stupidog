@@ -1,0 +1,130 @@
+import sys
+import csv
+
+# Define type aliases for better code readability
+type Soup = str    # A string representing the name of a soup
+type Flavor = str  # A string representing the name of a flavor
+type Topping = list[str | int]  # [topping (str), price (int), stock (int)]
+
+
+class RamenVendingMachine:
+    """A class that simulates a ramen vending machine."""
+    def __init__(self):
+        self.soups = ['Tonkotsu', 'Torigara']
+        self.flavors = ['Salt', 'Soy Sauce', 'Miso', 'Curry']
+        self.toppings = self._load_toppings()
+
+    @staticmethod
+    def _load_toppings() -> list[Topping]:
+        try:
+            with open("toppings.csv") as f:
+                rows = csv.reader(f)
+                next(rows)
+                toppings = []
+                for row in rows:
+                    name = row[0]
+                    price = int(row[1])
+                    stock = int(row[2])
+                    toppings.append([name, price, stock])
+                return toppings
+        except OSError as e:
+            print(e)
+            sys.exit(1)
+
+    @staticmethod
+    def _select_menu(category: str, items: list[Soup | Flavor | Topping],
+                     limit: int = 1) -> Soup | Flavor | list[Topping]:
+        """Display a menu and prompt the user to enter valid choice(s)."""
+        menu_items = list(enumerate(items, start=1))
+        while True:  # Lock the user in this loop until getting valid choice(s)
+            # Print the menu
+            print(f"{category} menu:", end=' ')
+            if category == "Toppings":
+                choice_limit = 5
+                menu_items = [(i, x) for i, x in menu_items if x[2] > 0]
+                s, k = '\n', 1  # s is the string of toppings menu items
+                for i, x in menu_items:
+                    s += f"{i}. {x[0]} (${x[1]})"  # shown as enumerated
+                    s += ('\n' if k % 5 == 0 else ', ')  # 5 items per line
+                    k += 1
+                print(s[:-2] + '\n' if s[-2:] == ', ' else s, end='')
+            else:
+                print(", ".join(f"{i}. {x}" for i, x in menu_items))
+
+            # Prompt the user to select menu item(s) and validate the input
+            choices = list(
+                map(int, input(f"Select {category.lower()}: ").split())
+            )
+            if 1 <= len(choices) <= limit:
+                # If all user-selected items are in the menu items list,
+                # we end the while loop to return the result.
+                if all(c in [x[0] for x in menu_items] for c in choices):
+                    break
+                else:
+                    print("Invalid choice(s).", end=' ')
+            elif len(choices) < 1:
+                print("Too few choices.", end=' ')
+            else:
+                print("Too many choices.", end=' ')
+            print('Select again!')
+
+        selections = [items[c - 1] for c in choices]
+        return selections[0] if limit == 1 else selections
+
+    def vend(self) -> None:
+        ramen_purchased = []
+        while True:
+            soup_selected = self._select_menu("Soup", self.soups)
+            flavor_selected = self._select_menu("Flavor", self.flavors)
+            toppings_selected = self._select_menu(
+                "Toppings", self.toppings, limit=5)
+            ramen_selected = Ramen(
+                soup_selected, flavor_selected, toppings_selected)
+            print(ramen_selected)
+            confirm = input("Confirmed (Y/N)? ").lower()
+            if confirm == "y":
+                ramen_purchased.append(ramen_selected)
+                for t in toppings_selected:
+                    n = self.toppings.index(t)
+                    self.toppings[n][2] -= 1
+            else:
+                pass
+            new_order = input("Make another order (Y/N)? ").lower()
+            if new_order == "y":
+                continue
+            else:
+                break
+        print("Bill Summary:")
+        total_price = 0
+        for i, r in enumerate(ramen_purchased, start=1):
+            total_price += r.price()
+            print(f"{i}. {r}")
+        print(f"Total: ${total_price}")
+
+
+class Ramen:
+    """A class that models a bowl of ramen."""
+    def __init__(self, soup: Soup, flavor: Flavor, toppings: list[Topping]):
+        self.soup = soup
+        self.flavor = flavor
+        self.toppings = toppings
+
+    def price(self) -> int:
+        ramen_price = 0
+        for i in self.toppings:
+            ramen_price += i[1]
+        total_ramen_price = int(ramen_price)
+        return total_ramen_price
+
+    def __str__(self) -> str:
+        toppings_name = [i[0] for i in self.toppings]
+        toppings_display = ", ".join(toppings_name)
+        ramen_name = (f"{self.soup} {self.flavor} Ramen with "
+                      f"{toppings_display}: ${self.price()}")
+        return ramen_name
+
+
+# Client code
+if __name__ == "__main__":
+    rvm = RamenVendingMachine()
+    rvm.vend()
