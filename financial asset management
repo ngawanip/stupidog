@@ -1,0 +1,130 @@
+from abc import ABC, abstractmethod
+
+
+class Asset(ABC):
+    """An abstract base class modeling financial assets."""
+    def __init__(self, name: str, purchase_price: float, current_price: float):
+        self.name = name
+        self.purchase_price = purchase_price
+        self.current_price = current_price
+
+    @abstractmethod
+    def net_return(self) -> float:
+        """Calculate the net return of the asset."""
+        pass
+
+    @abstractmethod
+    def __str__(self) -> str:
+        """Return a string representation of an asset."""
+        return f"Asset: {self.name} ({self.__class__.__name__})"
+
+
+class Stock(Asset):
+    """A concrete subclass modeling a stock asset."""
+
+    def __init__(self, ticker: str, purchase_price: float,
+                 current_price: float, shares: int):
+        """Initialize a Stock instance."""
+        super().__init__(ticker, purchase_price, current_price)
+        self.shares = shares
+
+    def net_return(self) -> float:
+        """Calculate the net return of the stock investment."""
+        stock_net_return = ((self.current_price - self.purchase_price)
+                            * self.shares)
+        return stock_net_return
+
+    def __str__(self) -> str:
+        """Return a string representation of the Stock instance."""
+        return (super().__str__() + "\n"
+                f"   * Purchase Price: ${self.purchase_price:.2f}\n"
+                f"   * Current Price: ${self.current_price:.2f}\n"
+                f"   * Shares: {self.shares}\n"
+                f"   * Net Return: ${self.net_return():.2f}")
+
+
+class Bond(Asset):
+    """A concrete subclass modeling a bond asset."""
+
+    def __init__(self, name: str, face_value: float, coupon_rate: float,
+                 market_rate: float, years: int, purchase_price: float):
+        """Initialize a Bond instance."""
+        self.face_value = face_value
+        self.coupon_rate = coupon_rate
+        self.years = years
+        super().__init__(name, purchase_price, self.present_value(market_rate))
+
+    def present_value(self, market_rate: float) -> float:
+        """Calculate current price of the bond from its future cash flows."""
+        a = 1 + market_rate
+        c = self.face_value * self.coupon_rate
+        pv = (c * (1 - a**(-self.years)) / market_rate
+              + self.face_value / a**(self.years))
+        return pv
+
+    def net_return(self) -> float:
+        """Calculate the net return of the bond investment."""
+        bond_net_return = (self.face_value
+                           + self.face_value * self.coupon_rate * self.years
+                           - self.purchase_price)
+        return bond_net_return
+
+    def __str__(self) -> str:
+        """Return a string representation of the Bond instance."""
+        return (super().__str__() + "\n"
+                f"   * Face Value: ${self.face_value:.2f}\n"
+                f"   * Coupon Rate: {self.coupon_rate * 100:.2f}%\n"
+                f"   * Years to Maturity: {self.years}\n"
+                f"   * Purchase Price: ${self.purchase_price:.2f}\n"
+                f"   * Current Price: ${self.current_price:.2f}\n"
+                f"   * Net Return: ${self.net_return():.2f}")
+
+
+class Portfolio:
+    """A portofolio class that managaes a collection of financial assets."""
+
+    def __init__(self, title: str):
+        """Initialize an empty Portfolio instance."""
+        self.title = title
+        self.assets = []  # a list to hold assets
+
+    def add_asset(self, asset: Asset) -> None:
+        """Add an Asset subclass object to the portfolio."""
+        if asset in self.assets:
+            print(f"Asset {asset.name} is already in the portfolio.")
+        else:
+            self.assets.append(asset)
+
+    def total_return(self) -> float:
+        """Calculate the total return of all assets in the portfolio."""
+        pf_total_return = 0
+        for i in self.assets:
+            pf_total_return += i.net_return()
+        return pf_total_return
+
+    def print_summary(self) -> None:
+        """Display a summary of all assets in the portfolio."""
+        print(f"Portfolio: {self.title}")
+        for i, m in enumerate(self.assets, start=1):
+            print(f"{i}. {m}")
+
+
+# Client Code
+if __name__ == "__main__":
+    # Create instances of Stock and Bond
+    aapl = Stock("AAPL", 181.46, 269.21, 100)
+    nvda = Stock("NVDA", 101.49, 201.87, 200)
+    jpmg = Bond("JPMorgan", 1000.0, 0.0435, 0.04, 5, 1015.0)
+    orac = Bond("Oracle", 1000.0, 0.0595, 0.045, 10, 950.0)
+
+    # Create a portfolio and add assets to it
+    portfolio = Portfolio("My 10-Year Investment Plan")
+    for asset in [aapl, nvda, jpmg, orac]:
+        portfolio.add_asset(asset)
+
+    # Test adding a duplicate asset
+    portfolio.add_asset(aapl)
+
+    # Display the portfolio
+    portfolio.print_summary()
+    print(f"Total Portfolio Return: ${portfolio.total_return():.2f}")
